@@ -1,7 +1,7 @@
 {
   "$schema_note": "硅基文明消费股 watchlist. Edit via UI or directly. Each entry: {symbol, name, theme, note?}.",
-  "updated_at": "2026-05-28",
-  "updated_by": "manual-remove-weak",
+  "updated_at": "2026-06-03",
+  "updated_by": "deepseek-refresh",
   "entries": [
     {
       "symbol": "688256",
@@ -18,31 +18,10 @@
       "global_supply": false
     },
     {
-      "symbol": "688047",
-      "name": "龙芯中科",
-      "theme": "算力/AI芯片",
-      "note": "自主指令集 CPU",
-      "global_supply": false
-    },
-    {
       "symbol": "300474",
       "name": "景嘉微",
       "theme": "算力/AI芯片",
       "note": "国产 GPU",
-      "global_supply": false
-    },
-    {
-      "symbol": "002049",
-      "name": "紫光国微",
-      "theme": "算力/AI芯片",
-      "note": "特种 FPGA/SoC",
-      "global_supply": false
-    },
-    {
-      "symbol": "688385",
-      "name": "复旦微电",
-      "theme": "算力/AI芯片",
-      "note": "FPGA/MCU",
       "global_supply": false
     },
     {
@@ -99,20 +78,6 @@
       "theme": "光模块",
       "note": "铌酸锂调制器芯片及器件，薄膜铌酸锂光子集成",
       "global_supply": true
-    },
-    {
-      "symbol": "600330",
-      "name": "天通股份",
-      "theme": "半导体材料",
-      "note": "铌酸锂单晶/晶圆，上游关键原材料",
-      "global_supply": false
-    },
-    {
-      "symbol": "002222",
-      "name": "福晶科技",
-      "theme": "半导体材料",
-      "note": "铌酸锂等光学晶体材料",
-      "global_supply": false
     },
     {
       "symbol": "601138",
@@ -448,6 +413,160 @@
       "name": "立讯精密",
       "theme": "AI服务器",
       "note": "进入英伟达GB200供应链，提供服务器组装及高速铜缆互连组件，深度参与全球AI服务器制造",
+      "global_supply": true
+    },
+    {
+      "symbol": "002837",
+      "name": "英维克",
+      "theme": "液冷",
+      "note": "精密温控龙头，为英伟达等提供数据中心液冷解决方案",
+      "global_supply": true
+    },
+    {
+      "symbol": "600905",
+      "name": "三峡能源",
+      "theme": "电力",
+      "note": "国内绿电运营商龙头，主营风电、光伏",
+      "global_supply": false
+    },
+    {
+      "symbol": "600845",
+      "name": "宝信软件",
+      "theme": "IDC",
+      "note": "国内领先的第三方数据中心运营商，受益于AI算力需求",
+      "global_supply": false
+    },
+    {
+      "symbol": "300913",
+      "name": "兆龙互连",
+      "theme": "高速互连",
+      "note": "高速传输线缆龙头，DAC/AOC产品用于数据中心互连",
+      "global_supply": false
+    },
+    {
+      "symbol": "002851",
+      "name": "麦格米特",
+      "theme": "AI服务器",
+      "note": "AI服务器电源核心供应商，已进入英伟达MGX/GB200供应链",
+      "global_supply": true
+    },
+    {
+      "symbol": "601985",
+      "name": "中国核电",
+      "theme": "电力",
+      "note": "核电双寡头之一，为AI电力需求提供清洁核能",
+      "global_supply": false
+    },
+    {
+      "symbol": "688347",
+      "name": "华虹公司",
+      "theme": "晶圆代工",
+      "note": "国内第二大晶圆代工厂，特色工艺平台支撑AI芯片制造",
+      "global_supply": false
+    },
+    {
+      "symbol": "300054",
+      "name": "鼎龙股份",
+      "theme": "半导体材料",
+      "note": "CMP抛光垫龙头，进入三星等全球供应链",
+      "global_supply": true
+    },
+    {
+      "symbol": "300442",
+      "name": "润泽科技",
+      "theme": "IDC",
+      "note": "A股超大规模IDC龙头，深耕京津冀、长三角等核心区域，直接服务于云计算与AI算力需求。",
+      "global_supply": false
+    },
+    {
+      "symbol": "688525",
+      "name": "佰维存储",
+      "theme": "存储/HBM",
+      "note": "存储器模组核心厂商，产品覆盖DRAM、NAND，深度受益AI存储需求爆发。",
+      "global_supply": false
+    },
+    {
+      "symbol": "300666",
+      "name": "江丰电子",
+      "theme": "半导体材料",
+      "note": "高纯溅射靶材龙头，进入台积电、三星等供应链，为AI芯片制造提供关键材料。",
+      "global_supply": true
+    },
+    {
+      "symbol": "600050",
+      "name": "中国联通",
+      "theme": "云/AI基建",
+      "note": "三大运营商之一，“联通云”快速发展，提供AI算力、IDC等云基础设施服务。",
+      "global_supply": false
+    },
+    {
+      "symbol": "603912",
+      "name": "佳力图",
+      "theme": "液冷",
+      "note": "数据中心温控设备龙头，推出液冷解决方案，直接配套AI高密度散热场景。",
+      "global_supply": false
+    },
+    {
+      "symbol": "002384",
+      "name": "东山精密",
+      "theme": "AI-PCB",
+      "note": "全球领先的PCB及FPC供应商，为Apple等全球AI终端设备及服务器提供高密度互连板，深度参与AI硬件供应链",
+      "global_supply": true
+    },
+    {
+      "symbol": "688120",
+      "name": "华海清科",
+      "theme": "半导体设备",
+      "note": "国产CMP设备龙头，产品用于先进制程AI芯片制造，是半导体设备国产化关键标的",
+      "global_supply": false
+    },
+    {
+      "symbol": "002897",
+      "name": "意华股份",
+      "theme": "高速互连",
+      "note": "高速连接器与互连解决方案龙头，广泛应用于服务器、交换机等AI数据中心设备",
+      "global_supply": false
+    },
+    {
+      "symbol": "688234",
+      "name": "天岳先进",
+      "theme": "半导体材料",
+      "note": "全球少数能批量供应6/8英寸SiC衬底的龙头，已向英飞凌、博世等海外IDM供货",
+      "global_supply": true
+    },
+    {
+      "symbol": "688535",
+      "name": "华海诚科",
+      "theme": "半导体材料",
+      "note": "高端环氧塑封料龙头，产品进入全球OSAT供应链，用于先进封装与HBM封装",
+      "global_supply": true
+    },
+    {
+      "symbol": "688498",
+      "name": "源杰科技",
+      "theme": "光模块",
+      "note": "国产光芯片龙头，CW光源等产品用于800G/1.6T光模块，弥补上游空白",
+      "global_supply": false
+    },
+    {
+      "symbol": "688629",
+      "name": "华丰科技",
+      "theme": "高速互连",
+      "note": "高速背板连接器龙头，用于AI服务器内部互联",
+      "global_supply": false
+    },
+    {
+      "symbol": "600667",
+      "name": "太极实业",
+      "theme": "存储/HBM",
+      "note": "半导体封测龙头，子公司海太半导体为SK海力士提供DRAM封测，间接参与HBM全球供应链",
+      "global_supply": true
+    },
+    {
+      "symbol": "300870",
+      "name": "欧陆通",
+      "theme": "AI服务器",
+      "note": "服务器电源龙头，为戴尔、惠普、联想等提供AI服务器所需高效率电源，进入全球供应链",
       "global_supply": true
     }
   ]

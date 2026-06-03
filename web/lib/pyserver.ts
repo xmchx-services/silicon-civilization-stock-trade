@@ -5,6 +5,14 @@ const BASE = process.env.PYSERVER_URL ?? "http://localhost:8001";
 // HK symbols may need to wait in pyserver's token bucket before being served.
 const TIMEOUT_MS = Number(process.env.PYSERVER_TIMEOUT_MS ?? 180_000);
 
+function isAbortError(error: unknown) {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error &&
+      (error.name === "AbortError" || error.message === "This operation was aborted"))
+  );
+}
+
 export interface Kline {
   date: string;
   open: number;
@@ -38,6 +46,11 @@ async function get<T>(path: string, params: Record<string, string>): Promise<T> 
       const r = await fetch(`${BASE}${path}?${qs}`, { cache: "no-store", signal: ctrl.signal });
       if (!r.ok) throw new Error(`pyserver ${path} ${r.status}: ${await r.text()}`);
       return (await r.json()) as T;
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw new Error(`pyserver ${path} timed out after ${Math.round(TIMEOUT_MS / 1000)}s`);
+      }
+      throw error;
     } finally {
       clearTimeout(timer);
     }
@@ -57,8 +70,10 @@ export function fetchKlines(symbol: string, start = "20230101", end?: string) {
   return get<Kline[]>("/klines", params);
 }
 
-export function fetchFundamental(symbol: string) {
-  return get<Fundamental>("/fundamental", { symbol });
+export function fetchFundamental(symbol: string, opts: { bestEffort?: boolean } = {}) {
+  const params: Record<string, string> = { symbol };
+  if (opts.bestEffort) params.best_effort = "1";
+  return get<Fundamental>("/fundamental", params);
 }
 
 export interface Analyst {

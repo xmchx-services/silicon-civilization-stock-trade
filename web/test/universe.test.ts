@@ -11,7 +11,7 @@ const sample = {
   updated_at: "2026-01-01",
   updated_by: "test",
   entries: [
-    { symbol: "688256", name: "寒武纪", theme: "算力", global_supply: false },
+    { symbol: "688256", name: "寒武纪", theme: "算力", note: "国产 AI 训练/推理芯片龙头", global_supply: false },
     { symbol: "300476", name: "胜宏科技", theme: "AI-PCB", global_supply: true },
     { symbol: "600845", name: "宝信软件", theme: "云", global_supply: true },
   ],
@@ -67,4 +67,18 @@ test("writeUniverse round-trips", () => {
   assert.equal(reloaded.entries.length, 4);
   assert.equal(reloaded.updated_by, "round-trip-test");
   assert.equal(reloaded.entries.at(-1)!.symbol, "002463");
+});
+
+test("optional note metadata survives round-trip", () => {
+  const entry = readUniverse().entries[0];
+  assert.equal(entry.note, "国产 AI 训练/推理芯片龙头");
+
+  const u = readUniverse();
+  u.updated_by = "note-round-trip-test";
+  writeUniverse(u);
+
+  const reloaded = readUniverse();
+  assert.equal(reloaded.updated_by, "note-round-trip-test");
+  assert.equal(reloaded.entries[0].note, "国产 AI 训练/推理芯片龙头");
+  assert.equal(reloaded.entries[0].global_supply, false);
 });

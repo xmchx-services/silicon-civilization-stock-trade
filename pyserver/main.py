@@ -48,6 +48,9 @@ _pro = ts.pro_api()
 DB_PATH = Path(__file__).parent / "cache.db"
 
 app = FastAPI(title="silicon-civ pyserver", version="0.2.0")
+FUNDAMENTAL_FULL_TTL = 24 * 3600
+FUNDAMENTAL_PARTIAL_TTL = 6 * 3600
+FUNDAMENTAL_EMPTY_TTL = 300
 
 # ---------- cache ----------------------------------------------------------
 
@@ -131,9 +134,20 @@ class _TokenBucket:
                 wait = self.window - (now - self.calls[0]) + 0.05
             time.sleep(wait)
 
+    def try_acquire(self) -> bool:
+        with self.lock:
+            now = time.monotonic()
+            while self.calls and now - self.calls[0] > self.window:
+                self.calls.popleft()
+            if len(self.calls) >= self.n:
+                return False
+            self.calls.append(now)
+            return True
+
 
 # Tushare free tier caps hk_daily at 2/minute. Self-throttle to avoid 502s.
 _HK_DAILY_LIMITER = _TokenBucket(n=2, window_s=65)
+_DAILY_BASIC_LIMITER = _TokenBucket(n=1, window_s=65)
 _REPORT_RC_LIMITER = _TokenBucket(n=2, window_s=65)
 _SPOT_BATCH_CONCURRENCY = 12
 
@@ -160,6 +174,41 @@ def _report_rc(**kwargs):
     """Rate-limited wrapper around pro.report_rc."""
     _REPORT_RC_LIMITER.acquire()
     return _pro.report_rc(**kwargs)
+
+
+def _is_rate_limit_error(error: Exception) -> bool:
+    message = str(error)
+    return "频率超限" in message or "rate limit" in message.lower()
+
+
+def _daily_basic(*, block: bool = False, **kwargs):
+    """Wrapper around pro.daily_basic for the 1/min free-tier cap.
+
+    In opportunistic mode (`block=False`), return None when the local limiter is
+    saturated or the upstream rejects the call for rate limiting so callers can
+    fall back to partial AkShare-backed payloads instead of blocking or 502ing.
+
+    In blocking mode (`block=True`), wait for quota and retry once after an
+    upstream rate-limit error so free-tier users can trade latency for success.
+    """
+    if block:
+        _DAILY_BASIC_LIMITER.acquire()
+        try:
+            return _with_retries(_pro.daily_basic, **kwargs)
+        except Exception as e:
+            if not _is_rate_limit_error(e):
+                raise
+        _DAILY_BASIC_LIMITER.acquire()
+        return _with_retries(_pro.daily_basic, **kwargs)
+
+    if not _DAILY_BASIC_LIMITER.try_acquire():
+        return None
+    try:
+        return _with_retries(_pro.daily_basic, **kwargs)
+    except Exception as e:
+        if _is_rate_limit_error(e):
+            return None
+        raise
 
 
 # ---------- easy-tdx (通达信) A-share datasource ----------------------------
@@ -399,6 +448,23 @@ def _market_cap_to_yi(value: float | None) -> float | None:
     if abs(value) > 1_000_000:
         return value / 1e8
     return value
+
+
+def _has_fundamental_payload(out: dict[str, Any]) -> bool:
+    return any(out.get(key) is not None for key in ("name", "pe_ttm", "pb", "market_cap", "profit_yoy"))
+
+
+def _fundamental_ttl(out: dict[str, Any]) -> int:
+    has_core = (
+        out.get("pe_ttm") is not None
+        and out.get("pb") is not None
+        and out.get("market_cap") is not None
+    )
+    if has_core:
+        return FUNDAMENTAL_FULL_TTL if out.get("profit_yoy") is not None else FUNDAMENTAL_PARTIAL_TTL
+    if _has_fundamental_payload(out):
+        return FUNDAMENTAL_PARTIAL_TTL
+    return FUNDAMENTAL_EMPTY_TTL
 
 
 def _eastmoney_market_code(market: str) -> int:
@@ -680,7 +746,7 @@ def klines(
 
 
 @app.get("/fundamental", response_model=Fundamental)
-def fundamental(symbol: str):
+def fundamental(symbol: str, best_effort: bool = False):
     key = f"fund:v2:{symbol}"
     cached = cache_get(key)
     if cached is not None:
@@ -703,24 +769,34 @@ def fundamental(symbol: str):
             out["market_cap"] = market_cap
         _attach_profit_yoy(out, ts_code, market)
         if out.get("pe_ttm") is not None and out.get("pb") is not None and out.get("market_cap") is not None:
-            cache_put(key, out, 24 * 3600 if out.get("profit_yoy") is not None else 30)
+            cache_put(key, out, _fundamental_ttl(out))
             return out
 
     try:
         if market == "hk":
             # daily_basic is A-share only; for HK we leave fundamentals blank.
-            cache_put(key, out, 24 * 3600)
+            cache_put(key, out, FUNDAMENTAL_FULL_TTL)
             return out
         # Latest trading day's basic metrics. Pull last 5 days then take tail.
         today = date.today().strftime("%Y%m%d")
         start = (date.today() - timedelta(days=10)).strftime("%Y%m%d")
-        df = _with_retries(
-            _pro.daily_basic,
+        df = _daily_basic(
+            block=not best_effort and not _has_fundamental_payload(out),
             ts_code=ts_code, start_date=start, end_date=today,
             fields="ts_code,trade_date,close,pe_ttm,pb,total_mv",
         )
     except Exception as e:
+        if _has_fundamental_payload(out):
+            cache_put(key, out, _fundamental_ttl(out))
+            return out
         raise HTTPException(502, f"tushare error: {e}") from e
+
+    if df is None:
+        if _has_fundamental_payload(out):
+            cache_put(key, out, _fundamental_ttl(out))
+            return out
+        cache_put(key, out, _fundamental_ttl(out))
+        return out
 
     if df is not None and not df.empty:
         latest = df.sort_values("trade_date").iloc[-1]
@@ -733,7 +809,7 @@ def fundamental(symbol: str):
             out["market_cap"] = float(latest["total_mv"]) / 1e4
         _attach_profit_yoy(out, ts_code, market)
 
-    cache_put(key, out, 24 * 3600)
+    cache_put(key, out, _fundamental_ttl(out))
     return out
 
 
@@ -776,8 +852,7 @@ def analyst(symbol: str):
         if out.get("current_price") is None or pe_ttm is None:
             today = date.today().strftime("%Y%m%d")
             start_d = (date.today() - timedelta(days=10)).strftime("%Y%m%d")
-            db = _with_retries(
-                _pro.daily_basic,
+            db = _daily_basic(
                 ts_code=ts_code, start_date=start_d, end_date=today,
                 fields="ts_code,trade_date,close,pe_ttm",
             )

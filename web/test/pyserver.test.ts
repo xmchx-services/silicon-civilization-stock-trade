@@ -24,3 +24,28 @@ test("fetchAnalysts sends one deduped batch request", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("fetchFundamental can request best-effort mode", async () => {
+  const calls: string[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    calls.push(String(input));
+    return new Response(JSON.stringify({ symbol: "300476", pe_ttm: 10 }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }) as typeof fetch;
+
+  try {
+    const { fetchFundamental } = await import("../lib/pyserver");
+    const out = await fetchFundamental("300476", { bestEffort: true });
+    assert.deepEqual(out, { symbol: "300476", pe_ttm: 10 });
+    assert.equal(calls.length, 1);
+    const url = new URL(calls[0]);
+    assert.equal(url.pathname, "/fundamental");
+    assert.equal(url.searchParams.get("symbol"), "300476");
+    assert.equal(url.searchParams.get("best_effort"), "1");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

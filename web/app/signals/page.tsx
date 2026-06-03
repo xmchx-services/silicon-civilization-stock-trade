@@ -1,11 +1,7 @@
-import { loadEntries } from "@/lib/universe";
-import { fetchKlines, fetchFundamental, fetchSpot } from "@/lib/pyserver";
-import { scoreSymbols, type SymbolSnapshot } from "@/lib/deepseek";
 import Link from "next/link";
+import { loadSignalsPageData } from "@/lib/signals-page";
 
 export const dynamic = "force-dynamic";
-
-type LiveSnapshot = SymbolSnapshot & { spotPrice?: number };
 
 function calcPeg(pe?: number | null, profitYoyPct?: number | null) {
   if (pe == null || profitYoyPct == null || pe <= 0 || profitYoyPct <= 0) {
@@ -14,55 +10,14 @@ function calcPeg(pe?: number | null, profitYoyPct?: number | null) {
   return pe / profitYoyPct;
 }
 
-async function loadSignals() {
-  const universe = loadEntries();
-  const start = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 90);
-    return d.toISOString().slice(0, 10).replaceAll("-", "");
-  })();
-
-  const snapshots: LiveSnapshot[] = await Promise.all(
-    universe.map(async (e) => {
-      const [klines, fund, spot] = await Promise.all([
-        fetchKlines(e.symbol, start).catch(() => []),
-        fetchFundamental(e.symbol).catch(() => undefined),
-        fetchSpot(e.symbol).catch(() => undefined),
-      ]);
-      return {
-        symbol: e.symbol,
-        name: e.name,
-        theme: e.theme,
-        spotPrice: spot?.price,
-        closes: klines.map((k) => k.close),
-        fundamental: fund
-          ? {
-              pe_ttm: fund.pe_ttm,
-              pb: fund.pb,
-              market_cap: fund.market_cap,
-              profit_yoy: fund.profit_yoy,
-            }
-          : undefined,
-      };
-    }),
-  );
-
-  const usable = snapshots.filter((s) => s.closes.length >= 10);
-  const signals = await scoreSymbols(usable);
-  const byId = new Map(signals.map((s) => [s.symbol, s]));
-
-  return universe.map((e) => ({
-    entry: e,
-    snapshot: snapshots.find((s) => s.symbol === e.symbol),
-    signal: byId.get(e.symbol),
-  }));
-}
-
 export default async function SignalsPage() {
-  let rows: Awaited<ReturnType<typeof loadSignals>> = [];
+  let rows: Awaited<ReturnType<typeof loadSignalsPageData>>["rows"] = [];
   let error: string | null = null;
+  let fallbackSnapshotGeneratedAt: string | null = null;
   try {
-    rows = await loadSignals();
+    const data = await loadSignalsPageData();
+    rows = data.rows;
+    fallbackSnapshotGeneratedAt = data.fallbackSnapshotGeneratedAt;
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
@@ -88,6 +43,12 @@ export default async function SignalsPage() {
       )}
       {!error && (
         <div className="theme-panel">
+          {fallbackSnapshotGeneratedAt && (
+            <div className="card" style={{ marginBottom: 12, borderColor: "var(--warn)" }}>
+              <strong>快照回退：</strong> 当前展示的是最近一次成功结果，
+              生成时间 <code>{fallbackSnapshotGeneratedAt}</code>。
+            </div>
+          )}
           <div className="theme-title">
             <strong>信号列表</strong>
             <span>{rows.filter((r) => r.signal?.action === "buy").length} 买入 · {rows.filter((r) => r.signal?.action === "sell").length} 卖出</span>
@@ -122,7 +83,7 @@ export default async function SignalsPage() {
                         <span className="badge">n/a</span>
                       )}
                     </td>
-                    <td className="num">{snapshot?.spotPrice?.toFixed(2) ?? snapshot?.closes.at(-1)?.toFixed(2) ?? "—"}</td>
+                    <td className="num">{snapshot?.spotPrice?.toFixed(2) ?? snapshot?.lastClose?.toFixed(2) ?? "—"}</td>
                     <td className="num">{signal ? (signal.confidence * 100).toFixed(0) + "%" : "—"}</td>
                     <td className="num">{signal ? (signal.size * 100).toFixed(0) + "%" : "—"}</td>
                     <td className="num">{snapshot?.fundamental?.pe_ttm?.toFixed(1) ?? "—"}</td>

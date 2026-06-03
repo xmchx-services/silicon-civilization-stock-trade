@@ -5,7 +5,7 @@
 // Every proposed symbol is validated against pyserver before being written
 // (DeepSeek will otherwise hallucinate codes that don't trade).
 import { chat } from "./deepseek";
-import { fetchFundamental } from "./pyserver";
+import { fetchSpot } from "./pyserver";
 import type { UniverseEntry, UniverseFile } from "./universe";
 import { readUniverse, writeUniverse } from "./universe";
 
@@ -79,17 +79,22 @@ export async function proposeRefresh(current: UniverseFile): Promise<RefreshProp
   };
 }
 
-/** Validate a symbol by calling pyserver /fundamental. Returns true if pyserver
- *  knows it (200) regardless of whether all fields populated. */
+const DEFAULT_ADD_CONCURRENCY = 3;
+
+function getAddConcurrency() {
+  const parsed = Number(process.env.UNIVERSE_REFRESH_ADD_CONCURRENCY ?? DEFAULT_ADD_CONCURRENCY);
+  if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_ADD_CONCURRENCY;
+  return Math.floor(parsed);
+}
+
 function isHongKongSymbol(symbol: string): boolean {
   return symbol.trim().toLowerCase().startsWith("hk");
 }
 
 async function validateSymbol(symbol: string): Promise<{ ok: boolean; reason?: string }> {
   try {
-    const f = await fetchFundamental(symbol);
-    // Even if fields are null, pyserver returned 200 -> symbol parses + tushare didn't 502.
-    if (!f) return { ok: false, reason: "pyserver returned empty" };
+    const spot = await fetchSpot(symbol);
+    if (!spot) return { ok: false, reason: "pyserver returned empty" };
     return { ok: true };
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? e.message : String(e) };
@@ -106,8 +111,11 @@ export async function applyRefresh(
   // 1. Validate adds in parallel (bounded).
   const added: UniverseEntry[] = [];
   const rejected: { symbol: string; reason: string }[] = [];
-  const ADD_CONCURRENCY = 6;
+  const ADD_CONCURRENCY = getAddConcurrency();
   const hkAdds = proposal.adds.filter((a) => a.symbol && !known.has(a.symbol) && isHongKongSymbol(a.symbol));
+  for (const add of hkAdds) {
+    opts.onValidate?.(add.symbol, false);
+  }
   rejected.push(...hkAdds.map((a) => ({ symbol: a.symbol, reason: "Hong Kong stocks are excluded from the universe" })));
 
   const candidates = proposal.adds.filter((a) => a.symbol && !known.has(a.symbol) && !isHongKongSymbol(a.symbol));

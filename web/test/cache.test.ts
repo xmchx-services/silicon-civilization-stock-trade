@@ -11,9 +11,11 @@ process.chdir(tmp);
 let cached: typeof import("../lib/cache").cached;
 let cacheGet: typeof import("../lib/cache").cacheGet;
 let cachePut: typeof import("../lib/cache").cachePut;
+let getSignalsPageSnapshot: typeof import("../lib/cache").getSignalsPageSnapshot;
 let hashKey: typeof import("../lib/cache").hashKey;
 let getBacktestResult: typeof import("../lib/cache").getBacktestResult;
 let listBacktestResults: typeof import("../lib/cache").listBacktestResults;
+let saveSignalsPageSnapshot: typeof import("../lib/cache").saveSignalsPageSnapshot;
 let saveBacktestResult: typeof import("../lib/cache").saveBacktestResult;
 
 before(async () => {
@@ -21,9 +23,11 @@ before(async () => {
   cached = mod.cached;
   cacheGet = mod.cacheGet;
   cachePut = mod.cachePut;
+  getSignalsPageSnapshot = mod.getSignalsPageSnapshot;
   hashKey = mod.hashKey;
   getBacktestResult = mod.getBacktestResult;
   listBacktestResults = mod.listBacktestResults;
+  saveSignalsPageSnapshot = mod.saveSignalsPageSnapshot;
   saveBacktestResult = mod.saveBacktestResult;
 });
 
@@ -67,6 +71,32 @@ test("cached() calls fetcher only on miss", async () => {
   assert.deepEqual(a, { v: 1 });
   assert.deepEqual(b, { v: 1 });
   assert.equal(calls, 1);
+});
+
+test("signals page snapshot round-trips through cache", () => {
+  const snapshot: import("../lib/signals-types").SignalsPageSnapshot = {
+    generatedAt: "2026-06-03T12:00:00.000Z",
+    rows: [
+      {
+        entry: { symbol: "688256", name: "寒武纪", theme: "算力/AI芯片" },
+        snapshot: {
+          spotPrice: 123.45,
+          lastClose: 122.2,
+          fundamental: { pe_ttm: 88, pb: 12, market_cap: 999, profit_yoy: 44 },
+        },
+        signal: {
+          symbol: "688256",
+          action: "buy",
+          confidence: 0.8,
+          size: 0.5,
+          rationale: "test",
+        },
+      },
+    ],
+  };
+
+  saveSignalsPageSnapshot(snapshot);
+  assert.deepEqual(getSignalsPageSnapshot(), snapshot);
 });
 
 test("saveBacktestResult stores and returns a full backtest result", () => {

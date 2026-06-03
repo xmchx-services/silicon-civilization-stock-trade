@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { loadEntries } from "@/lib/universe";
-import { fetchKlines, fetchFundamental } from "@/lib/pyserver";
+import { fetchKlines } from "@/lib/pyserver";
+import { fetchBestEffortFundamental } from "@/lib/fundamental-loader";
 import { runBacktest, type BacktestConfig, type SymbolSeries } from "@/lib/backtest";
 import { mapPool } from "@/lib/concurrent";
 import { saveBacktestResult } from "@/lib/cache";
@@ -49,7 +50,7 @@ export async function POST(req: NextRequest) {
         const loadedSeries = await mapPool(universe, LOAD_CONCURRENCY, async (entry): Promise<SymbolSeries | null> => {
           const [klinesRes, fundRes] = await Promise.allSettled([
             fetchKlines(entry.symbol, aksStart, aksEnd),
-            fetchFundamental(entry.symbol),
+            fetchBestEffortFundamental(entry.symbol),
           ]);
           loaded++;
           send({ type: "progress", phase: "loading", done: loaded, total: universe.length });

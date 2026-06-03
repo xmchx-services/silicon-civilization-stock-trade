@@ -135,7 +135,8 @@ async function main() {
 
   // Dynamic imports so env loading above lands before any module-scope reads.
   const { readUniverse } = await import("../lib/universe");
-  const { fetchAnalyst, fetchSpot, fetchKlines, fetchFundamental } = await import("../lib/pyserver");
+  const { fetchAnalyst, fetchSpot, fetchKlines } = await import("../lib/pyserver");
+  const { fetchBestEffortFundamental } = await import("../lib/fundamental-loader");
   const { scoreSymbols } = await import("../lib/deepseek");
   const { runBacktest } = await import("../lib/backtest");
   const { mapPool } = await import("../lib/concurrent");
@@ -192,7 +193,7 @@ async function main() {
     const snapshots = await mapPool(u.entries, 4, async (e): Promise<SymbolSnapshot> => {
       const [klines, fund] = await Promise.all([
         fetchKlines(e.symbol, start90).catch(() => []),
-        fetchFundamental(e.symbol).catch(() => undefined),
+        fetchBestEffortFundamental(e.symbol).catch(() => undefined),
       ]);
       return {
         symbol: e.symbol,
@@ -240,7 +241,7 @@ async function main() {
       await mapPool(u.entries, 6, async (entry): Promise<SymbolSeries | null> => {
         const [klRes, fdRes] = await Promise.allSettled([
           fetchKlines(entry.symbol, aksStart, aksEnd),
-          fetchFundamental(entry.symbol),
+          fetchBestEffortFundamental(entry.symbol),
         ]);
         if (klRes.status !== "fulfilled" || klRes.value.length < 20) return null;
         const fd = fdRes.status === "fulfilled" ? fdRes.value : undefined;

@@ -5,6 +5,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import fs from "node:fs";
 import type { BacktestConfig, BacktestResult } from "./backtest";
+import type { SignalsPageSnapshot } from "./signals-types";
 
 const DIR = path.join(process.cwd(), ".cache");
 fs.mkdirSync(DIR, { recursive: true });
@@ -92,6 +93,8 @@ const listBacktestsStmt = db.prepare(`
   LIMIT ?
 `);
 
+const SIGNALS_SNAPSHOT_KEY = "signals_page_snapshot";
+
 export function hashKey(parts: unknown): string {
   return crypto.createHash("sha256").update(JSON.stringify(parts)).digest("hex");
 }
@@ -109,6 +112,14 @@ export function cacheGet<T>(key: string): T | null {
 
 export function cachePut<T>(key: string, value: T, ttlSeconds: number): void {
   putStmt.run(key, JSON.stringify(value), Math.floor(Date.now() / 1000), ttlSeconds);
+}
+
+export function saveSignalsPageSnapshot(snapshot: SignalsPageSnapshot): void {
+  cachePut(SIGNALS_SNAPSHOT_KEY, snapshot, 0);
+}
+
+export function getSignalsPageSnapshot(): SignalsPageSnapshot | null {
+  return cacheGet<SignalsPageSnapshot>(SIGNALS_SNAPSHOT_KEY);
 }
 
 export async function cached<T>(
